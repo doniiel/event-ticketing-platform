@@ -1,0 +1,38 @@
+# Go-specific ignores
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+vendor/
+
+# Dependency directories
+/go/pkg/
+/go/bin/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+*.env
+
+# Logs
+*.log
+
+# Database files
+*.db
+*.sqlite3
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+/tmp/

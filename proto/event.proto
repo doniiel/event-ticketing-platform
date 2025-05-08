@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package event;
+
+option go_package = "github.com/doniiel/event-ticketing-platform/proto/event";
+
+import "google/api/annotations.proto";
+
+message Event { string id = 1; string name = 2; string date = 3; string location = 4; int32 ticket_stock = 5; }
+
+message GetEventRequest { string id = 1; }
+
+message GetEventResponse { Event event = 1; }
+
+message CheckAvailabilityRequest { string event_id = 1; int32 quantity = 2; }
+
+message CheckAvailabilityResponse { bool available = 1; }
+
+message CreateEventRequest { string name = 1; string date = 2; string location = 3; int32 ticket_stock = 4; }
+
+message CreateEventResponse { Event event = 1; }
+
+message UpdateEventRequest { string id = 1; string name = 2; string date = 3; string location = 4; int32 ticket_stock = 5; }
+
+message UpdateEventResponse { Event event = 1; }
+
+message DeleteEventRequest { string id = 1; }
+
+message DeleteEventResponse {}
+
+service EventService { rpc GetEvent(GetEventRequest) returns (GetEventResponse) { option (google.api.http) = { get: "/v1/events/{id}" }; } rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse) { option (google.api.http) = { post: "/v1/events/{event_id}/check-availability" body: "" }; } rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse) { option (google.api.http) = { post: "/v1/events" body: "" }; } rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse) { option (google.api.http) = { put: "/v1/events/{id}" body: "*" }; } rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse) { option (google.api.http) = { delete: "/v1/events/{id}" }; } }
