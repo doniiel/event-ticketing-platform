@@ -1,19 +1,47 @@
-  syntax = "proto3";
+syntax = "proto3";
 
-  package ticket;
+package ticket;
 
-  option go_package = "github.com/doniiel/event-ticketing-platform/proto/ticket";
+option go_package = "github.com/doniiel/event-ticketing-platform/proto/ticket";
 
-  import "google/api/annotations.proto";
+import "google/api/annotations.proto";
 
-  message Ticket { string id = 1; string event_id = 2; string user_id = 3; string status = 4; }
+message Ticket {
+  string id = 1;
+  string event_id = 2;
+  string user_id = 3;
+  string status = 4;
+}
 
-  message PurchaseTicketRequest { string event_id = 1; string user_id = 2; int32 quantity = 3; }
+message PurchaseTicketRequest {
+  string event_id = 1;
+  string user_id = 2;
+  int32 quantity = 3;
+}
 
-  message PurchaseTicketResponse { Ticket ticket = 1; }
+message PurchaseTicketResponse {
+  Ticket ticket = 1;
+}
 
-  message GetTicketRequest { string id = 1; }
+message GetTicketRequest {
+  string id = 1;
+}
 
-  message GetTicketResponse { Ticket ticket = 1; }
+message GetTicketResponse {
+  Ticket ticket = 1;
+}
 
-  service TicketService { rpc PurchaseTicket(PurchaseTicketRequest) returns (PurchaseTicketResponse) { option (google.api.http) = { post: "/v1/tickets" body: "*" }; } rpc GetTicket(GetTicketRequest) returns (GetTicketResponse) { option (google.api.http) = { get: "/v1/tickets/{id}" }; } }
+service TicketService {
+  rpc PurchaseTicket(PurchaseTicketRequest) returns (PurchaseTicketResponse) {
+    option (google.api.http) = {
+      post: "/v1/tickets"
+      body: "*"
+    };
+  }
+
+  rpc GetTicket(GetTicketRequest) returns (GetTicketResponse) {
+    option (google.api.http) = {
+      get: "/v1/tickets/{id}"
+    };
+  }
+}

@@ -37,6 +37,7 @@ service NotificationService {
       body: "*"
     };
   }
+
   rpc GetNotifications(GetNotificationsRequest) returns (GetNotificationsResponse) {
     option (google.api.http) = {
       get: "/v1/notifications/{user_id}"
