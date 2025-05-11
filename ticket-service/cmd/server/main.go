@@ -81,6 +81,7 @@ func main() {
 	); err != nil {
 		log.Fatalf("Failed to register gateway: %v", err)
 	}
+	registerHealthCheckEndpoint(mux)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
@@ -109,4 +110,12 @@ func main() {
 	}
 
 	log.Println("Servers gracefully stopped")
+}
+
+func registerHealthCheckEndpoint(mux *runtime.ServeMux) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
 }

@@ -15,6 +15,8 @@ type TicketConsumer struct {
 	ticketServiceAddr string
 	notificationRepo  repository.NotificationRepository
 	stopCh            chan struct{}
+	client            ticketpb.TicketServiceClient
+	conn              *grpc.ClientConn
 }
 
 func NewTicketConsumer(ticketServiceAddr string, notificationRepo repository.NotificationRepository) *TicketConsumer {
@@ -30,21 +32,24 @@ func (c *TicketConsumer) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to ticket service: %w", err)
 	}
-	defer conn.Close()
 
-	client := ticketpb.NewTicketServiceClient(conn)
+	c.conn = conn
+	c.client = ticketpb.NewTicketServiceClient(conn)
 
 	log.Printf("Starting ticket event consumer, connecting to %s", c.ticketServiceAddr)
-	go c.simulateTicketEventListener(client)
+	go c.simulateTicketEventListener()
 
 	return nil
 }
 
 func (c *TicketConsumer) Stop() {
 	close(c.stopCh)
+	if c.conn != nil {
+		c.conn.Close()
+	}
 }
 
-func (c *TicketConsumer) simulateTicketEventListener(client ticketpb.TicketServiceClient) {
+func (c *TicketConsumer) simulateTicketEventListener() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
