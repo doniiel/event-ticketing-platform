@@ -2,55 +2,91 @@ package main
 
 import (
 	"context"
-	"github.com/doniiel/event-ticketing-platform/event-service/internal/repository"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/event"
-	"google.golang.org/grpc"
+	"fmt"
+	"log"
 	"net"
 	"net/http"
-	"sync"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/doniiel/event-ticketing-platform/event-service/internal/config"
+	"github.com/doniiel/event-ticketing-platform/event-service/internal/database"
+	"github.com/doniiel/event-ticketing-platform/event-service/internal/handler"
+	"github.com/doniiel/event-ticketing-platform/event-service/internal/repository"
+	eventpb "github.com/doniiel/event-ticketing-platform/proto/event"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
-	logger := logrus.New()
-	logger.SetFormatter(&logrus.JSONFormatter{})
-	repo, err := repository.NewEventRepository("root:password@tcp(127.0.0.1:3306)/event_ticketing?parseTime=true")
+	cfg := config.LoadConfig()
+
+	db, err := database.NewMySQLConnection(cfg.DatabaseURL)
 	if err != nil {
-		logger.Fatalf("Failed to connect to MySQL: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	eventRepo := repository.NewEventRepository(db)
+
+	eventHandler := handler.NewEventHandler(eventRepo)
+
+	grpcServer := grpc.NewServer()
+	eventpb.RegisterEventServiceServer(grpcServer, eventHandler)
+	reflection.Register(grpcServer)
+
+	grpcListener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPCPort))
+	if err != nil {
+		log.Fatalf("Failed to listen for gRPC: %v", err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Start gRPC server
 	go func() {
-		defer wg.Done()
-		lis, err := net.Listen("tcp", ":50051")
-		if err != nil {
-			logger.Fatalf("Failed to listen: %v", err)
-		}
-		grpcServer := grpc.NewServer()
-		event.RegisterEventServiceServer(grpcServer, &eventService{repo: repo, logger: logger})
-		logger.Info("gRPC server running on :50051")
-		if err := grpcServer.Serve(lis); err != nil {
-			logger.Fatalf("Failed to serve gRPC: %v", err)
+		log.Printf("gRPC server listening on :%d", cfg.GRPCPort)
+		if err := grpcServer.Serve(grpcListener); err != nil {
+			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
 	}()
 
-	// Start HTTP server
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	if err := eventpb.RegisterEventServiceHandlerFromEndpoint(
+		ctx, mux, fmt.Sprintf("localhost:%d", cfg.GRPCPort), opts,
+	); err != nil {
+		log.Fatalf("Failed to register gateway: %v", err)
+	}
+
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
+		Handler: mux,
+	}
+
 	go func() {
-		defer wg.Done()
-		mux := runtime.NewServeMux()
-		err := event.RegisterEventServiceHandlerServer(context.Background(), mux, &eventService{repo: repo, logger: logger})
-		if err != nil {
-			logger.Fatalf("Failed to register gateway: %v", err)
-		}
-		logger.Info("HTTP server running on :8080")
-		if err := http.ListenAndServe(":8080", mux); err != nil {
-			logger.Fatalf("Failed to serve HTTP: %v", err)
+		log.Printf("HTTP server listening on :%d", cfg.HTTPPort)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to serve HTTP: %v", err)
 		}
 	}()
 
-	wg.Wait()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down servers...")
+
+	grpcServer.GracefulStop()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("HTTP server shutdown error: %v", err)
+	}
+
+	log.Println("Servers gracefully stopped")
 }
