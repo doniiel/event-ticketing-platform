@@ -64,7 +64,7 @@ func (r *TicketRepository) GetByID(ctx context.Context, id string) (*model.Ticke
 	var ticket model.Ticket
 	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&ticket)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, errors.New("ticket not found")
 		}
 		return nil, err
@@ -78,7 +78,12 @@ func (r *TicketRepository) GetByUserID(ctx context.Context, userID string) ([]*m
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		err := cursor.Close(ctx)
+		if err != nil {
+
+		}
+	}(cursor, ctx)
 
 	var tickets []*model.Ticket
 	if err := cursor.All(ctx, &tickets); err != nil {
@@ -112,7 +117,7 @@ func (r *TicketRepository) UpdateStatus(ctx context.Context, id string, status m
 	).Decode(&ticket)
 
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, errors.New("ticket not found")
 		}
 		return nil, err
@@ -135,7 +140,12 @@ func (r *TicketRepository) GetActiveTicketsForEvent(ctx context.Context, eventID
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		err := cursor.Close(ctx)
+		if err != nil {
+
+		}
+	}(cursor, ctx)
 
 	var tickets []*model.Ticket
 	if err := cursor.All(ctx, &tickets); err != nil {

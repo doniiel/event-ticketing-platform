@@ -1,8 +1,8 @@
 package consumer
 
 import (
-	"context"
 	"fmt"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"time"
 
@@ -28,7 +28,10 @@ func NewTicketConsumer(ticketServiceAddr string, notificationRepo repository.Not
 }
 
 func (c *TicketConsumer) Start() error {
-	conn, err := grpc.Dial(c.ticketServiceAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(
+		c.ticketServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to connect to ticket service: %w", err)
 	}
@@ -45,7 +48,10 @@ func (c *TicketConsumer) Start() error {
 func (c *TicketConsumer) Stop() {
 	close(c.stopCh)
 	if c.conn != nil {
-		c.conn.Close()
+		err := c.conn.Close()
+		if err != nil {
+			return
+		}
 	}
 }
 

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/mongo"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 	"net/http"
@@ -16,7 +19,7 @@ import (
 	"github.com/doniiel/event-ticketing-platform/ticket-service/internal/database"
 	"github.com/doniiel/event-ticketing-platform/ticket-service/internal/handler"
 	"github.com/doniiel/event-ticketing-platform/ticket-service/internal/repository"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -28,29 +31,62 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer func(client *mongo.Client, ctx context.Context) {
+		err := client.Disconnect(ctx)
+		if err != nil {
+
+		}
+	}(client, context.Background())
 
 	db := client.Database(cfg.DatabaseName)
 
 	ticketRepo := repository.NewTicketRepository(db)
 
+	//eventConn, err := grpc.Dial(
+	//	cfg.EventServiceAddr,
+	//	grpc.WithInsecure(),
+	//)
+	//if err != nil {
+	//	log.Fatalf("Failed to connect to event service: %v", err)
+	//}
+	//defer eventConn.Close()
+	//
+	//notifConn, err := grpc.Dial(
+	//	cfg.NotificationServiceAddr,
+	//	grpc.WithInsecure(),
+	//)
+	//if err != nil {
+	//	log.Fatalf("Failed to connect to notification service: %v", err)
+	//}
+	//defer notifConn.Close()
+
 	eventConn, err := grpc.Dial(
 		cfg.EventServiceAddr,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		log.Fatalf("Failed to connect to event service: %v", err)
 	}
-	defer eventConn.Close()
+	defer func(eventConn *grpc.ClientConn) {
+		err := eventConn.Close()
+		if err != nil {
+
+		}
+	}(eventConn)
 
 	notifConn, err := grpc.Dial(
 		cfg.NotificationServiceAddr,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		log.Fatalf("Failed to connect to notification service: %v", err)
 	}
-	defer notifConn.Close()
+	defer func(notifConn *grpc.ClientConn) {
+		err := notifConn.Close()
+		if err != nil {
+
+		}
+	}(notifConn)
 
 	ticketHandler := handler.NewTicketHandler(ticketRepo, eventConn, notifConn)
 
@@ -75,7 +111,7 @@ func main() {
 	defer cancel()
 
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	if err := ticketpb.RegisterTicketServiceHandlerFromEndpoint(
 		ctx, mux, fmt.Sprintf("localhost:%d", cfg.GRPCPort), opts,
 	); err != nil {
@@ -90,7 +126,7 @@ func main() {
 
 	go func() {
 		log.Printf("HTTP server listening on :%d", cfg.HTTPPort)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Failed to serve HTTP: %v", err)
 		}
 	}()
@@ -113,9 +149,21 @@ func main() {
 }
 
 func registerHealthCheckEndpoint(mux *runtime.ServeMux) {
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	//mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	//	w.Header().Set("Content-Type", "application/json")
+	//	w.WriteHeader(http.StatusOK)
+	//	w.Write([]byte(`{"status":"ok"}`))
+	//})
+
+	err := mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, err := w.Write([]byte(`{"status":"ok"}`))
+		if err != nil {
+			return
+		}
 	})
+	if err != nil {
+		return
+	}
 }
