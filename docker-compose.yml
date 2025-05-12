@@ -31,57 +31,57 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  event-service:
-    build:
-      context: .
-      dockerfile: event-service/Dockerfile
-    ports:
-      - "50051:50051"
-      - "8081:8081"
-    environment:
-      - GRPC_PORT=50051
-      - HTTP_PORT=8081
-      - DATABASE_URL=root:password@tcp(mysql:3306)/events?parseTime=true
-    depends_on:
-      mysql:
-        condition: service_healthy
-
-  ticket-service:
-    build:
-      context: .
-      dockerfile: ticket-service/Dockerfile
-    ports:
-      - "50052:50052"
-      - "8082:8082"
-    environment:
-      - GRPC_PORT=50052
-      - HTTP_PORT=8082
-      - MONGO_URI=mongodb://root:password@mongodb:27017
-      - EVENT_SERVICE_ADDR=event-service:50051
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      event-service:
-        condition: service_started
-
-  notification-service:
-    build:
-      context: .
-      dockerfile: notification-service/Dockerfile
-    ports:
-      - "50053:50053"
-      - "8083:8083"
-    environment:
-      - GRPC_PORT=50053
-      - HTTP_PORT=8083
-      - DATABASE_URL=root:password@tcp(mysql:3306)/notifications?parseTime=true
-      - TICKET_SERVICE_ADDR=ticket-service:50052
-    depends_on:
-      mysql:
-        condition: service_healthy
-      ticket-service:
-        condition: service_started
+#
+#  event-service:
+#    build:
+#      context: .
+#      dockerfile: event-service/Dockerfile
+#    ports:
+#      - "50051:50051"
+#      - "8081:8081"
+#    environment:
+#      - GRPC_PORT=50051
+#      - HTTP_PORT=8081
+#      - DATABASE_URL=root:password@tcp(mysql:3306)/events?parseTime=true
+#    depends_on:
+#      mysql:
+#        condition: service_healthy
+#
+#  ticket-service:
+#    build:
+#      context: .
+#      dockerfile: ticket-service/Dockerfile
+#    ports:
+#      - "50052:50052"
+#      - "8082:8082"
+#    environment:
+#      - GRPC_PORT=50052
+#      - HTTP_PORT=8082
+#      - MONGO_URI=mongodb://root:password@mongodb:27017
+#      - EVENT_SERVICE_ADDR=event-service:50051
+#    depends_on:
+#      mongodb:
+#        condition: service_healthy
+#      event-service:
+#        condition: service_started
+#
+#  notification-service:
+#    build:
+#      context: .
+#      dockerfile: notification-service/Dockerfile
+#    ports:
+#      - "50053:50053"
+#      - "8083:8083"
+#    environment:
+#      - GRPC_PORT=50053
+#      - HTTP_PORT=8083
+#      - DATABASE_URL=root:password@tcp(mysql:3306)/notifications?parseTime=true
+#      - TICKET_SERVICE_ADDR=ticket-service:50052
+#    depends_on:
+#      mysql:
+#        condition: service_healthy
+#      ticket-service:
+#        condition: service_started
 
 volumes:
   mysql-data:

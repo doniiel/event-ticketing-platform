@@ -15,8 +15,9 @@ import (
 	"github.com/doniiel/event-ticketing-platform/event-service/internal/database"
 	"github.com/doniiel/event-ticketing-platform/event-service/internal/handler"
 	"github.com/doniiel/event-ticketing-platform/event-service/internal/repository"
+	"github.com/doniiel/event-ticketing-platform/event-service/internal/server"
 	eventpb "github.com/doniiel/event-ticketing-platform/proto/event"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -31,10 +32,11 @@ func main() {
 	defer db.Close()
 
 	eventRepo := repository.NewEventRepository(db)
-
 	eventHandler := handler.NewEventHandler(eventRepo)
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(server.UnaryLoggerInterceptor),
+	)
 	eventpb.RegisterEventServiceServer(grpcServer, eventHandler)
 	reflection.Register(grpcServer)
 
@@ -50,22 +52,27 @@ func main() {
 		}
 	}()
 
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithInsecure()}
+
 	if err := eventpb.RegisterEventServiceHandlerFromEndpoint(
 		ctx, mux, fmt.Sprintf("localhost:%d", cfg.GRPCPort), opts,
 	); err != nil {
 		log.Fatalf("Failed to register gateway: %v", err)
 	}
-	registerHealthCheckEndpoint(mux)
+
+	mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
-		Handler: mux,
+		Handler: server.HttpLoggerMiddleware(mux),
 	}
 
 	go func() {
@@ -90,12 +97,4 @@ func main() {
 	}
 
 	log.Println("Servers gracefully stopped")
-}
-
-func registerHealthCheckEndpoint(mux *runtime.ServeMux) {
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
 }

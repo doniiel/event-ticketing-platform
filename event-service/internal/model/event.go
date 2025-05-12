@@ -4,6 +4,7 @@ import (
 	"time"
 
 	eventpb "github.com/doniiel/event-ticketing-platform/proto/event"
+	"github.com/google/uuid"
 )
 
 type Event struct {
@@ -38,5 +39,20 @@ func EventFromProto(e *eventpb.Event) (*Event, error) {
 		Date:        date,
 		Location:    e.Location,
 		TicketStock: e.TicketStock,
+	}, nil
+}
+
+func NewEvent(name, dateStr, location string, ticketStock int32) (*Event, error) {
+	date, err := time.Parse(time.RFC3339, dateStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Event{
+		ID:          uuid.New().String(),
+		Name:        name,
+		Date:        date,
+		Location:    location,
+		TicketStock: ticketStock,
 	}, nil
 }

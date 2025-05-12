@@ -5,32 +5,32 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/doniiel/event-ticketing-platform/event-service/internal/model"
-	"github.com/google/uuid"
 )
 
-type EventRepository struct {
+type EventRepository interface {
+	Create(ctx context.Context, event *model.Event) (*model.Event, error)
+	GetByID(ctx context.Context, id string) (*model.Event, error)
+	Update(ctx context.Context, event *model.Event) (*model.Event, error)
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, page, pageSize int32) ([]*model.Event, int32, error)
+	CheckAvailability(ctx context.Context, eventID string, quantity int32) (bool, error)
+	UpdateTicketStock(ctx context.Context, eventID string, quantity int32) error
+}
+
+type EventRepositoryImpl struct {
 	db *sql.DB
 }
 
-func NewEventRepository(db *sql.DB) *EventRepository {
-	return &EventRepository{db: db}
+func NewEventRepository(db *sql.DB) EventRepository {
+	return &EventRepositoryImpl{db: db}
 }
 
-func (r *EventRepository) Create(ctx context.Context, event *model.Event) (*model.Event, error) {
-	if event.ID == "" {
-		event.ID = uuid.New().String()
-	}
-
-	now := time.Now()
-	event.CreatedAt = now
-	event.UpdatedAt = now
-
+func (r *EventRepositoryImpl) Create(ctx context.Context, event *model.Event) (*model.Event, error) {
 	query := `
-		INSERT INTO events (id, name, date, location, ticket_stock, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO events (id, name, date, location, ticket_stock)
+		VALUES (?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(
@@ -41,18 +41,21 @@ func (r *EventRepository) Create(ctx context.Context, event *model.Event) (*mode
 		event.Date,
 		event.Location,
 		event.TicketStock,
-		event.CreatedAt,
-		event.UpdatedAt,
 	)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event: %w", err)
 	}
 
-	return event, nil
+	createdEvent, err := r.GetByID(ctx, event.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve created event: %w", err)
+	}
+
+	return createdEvent, nil
 }
 
-func (r *EventRepository) GetByID(ctx context.Context, id string) (*model.Event, error) {
+func (r *EventRepositoryImpl) GetByID(ctx context.Context, id string) (*model.Event, error) {
 	query := `
 		SELECT id, name, date, location, ticket_stock, created_at, updated_at
 		FROM events
@@ -80,12 +83,10 @@ func (r *EventRepository) GetByID(ctx context.Context, id string) (*model.Event,
 	return &event, nil
 }
 
-func (r *EventRepository) Update(ctx context.Context, event *model.Event) (*model.Event, error) {
-	event.UpdatedAt = time.Now()
-
+func (r *EventRepositoryImpl) Update(ctx context.Context, event *model.Event) (*model.Event, error) {
 	query := `
 		UPDATE events
-		SET name = ?, date = ?, location = ?, ticket_stock = ?, updated_at = ?
+		SET name = ?, date = ?, location = ?, ticket_stock = ?
 		WHERE id = ?
 	`
 
@@ -96,7 +97,6 @@ func (r *EventRepository) Update(ctx context.Context, event *model.Event) (*mode
 		event.Date,
 		event.Location,
 		event.TicketStock,
-		event.UpdatedAt,
 		event.ID,
 	)
 
@@ -113,10 +113,15 @@ func (r *EventRepository) Update(ctx context.Context, event *model.Event) (*mode
 		return nil, fmt.Errorf("event not found")
 	}
 
-	return event, nil
+	updatedEvent, err := r.GetByID(ctx, event.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve updated event: %w", err)
+	}
+
+	return updatedEvent, nil
 }
 
-func (r *EventRepository) Delete(ctx context.Context, id string) error {
+func (r *EventRepositoryImpl) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM events WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query, id)
@@ -136,16 +141,25 @@ func (r *EventRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *EventRepository) List(ctx context.Context) ([]*model.Event, error) {
+func (r *EventRepositoryImpl) List(ctx context.Context, page, pageSize int32) ([]*model.Event, int32, error) {
+	var total int32
+	countQuery := `SELECT COUNT(*) FROM events`
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count events: %w", err)
+	}
+
 	query := `
 		SELECT id, name, date, location, ticket_stock, created_at, updated_at
 		FROM events
 		ORDER BY date ASC
+		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.QueryContext(ctx, query)
+	offset := (page - 1) * pageSize
+	rows, err := r.db.QueryContext(ctx, query, pageSize, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list events: %w", err)
+		return nil, 0, fmt.Errorf("failed to list events: %w", err)
 	}
 	defer rows.Close()
 
@@ -161,19 +175,19 @@ func (r *EventRepository) List(ctx context.Context) ([]*model.Event, error) {
 			&event.CreatedAt,
 			&event.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan event: %w", err)
 		}
 		events = append(events, &event)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
+		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
-	return events, nil
+	return events, total, nil
 }
 
-func (r *EventRepository) CheckAvailability(ctx context.Context, eventID string, quantity int32) (bool, error) {
+func (r *EventRepositoryImpl) CheckAvailability(ctx context.Context, eventID string, quantity int32) (bool, error) {
 	query := `SELECT ticket_stock FROM events WHERE id = ?`
 
 	var ticketStock int32
@@ -188,14 +202,14 @@ func (r *EventRepository) CheckAvailability(ctx context.Context, eventID string,
 	return ticketStock >= quantity, nil
 }
 
-func (r *EventRepository) UpdateTicketStock(ctx context.Context, eventID string, quantity int32) error {
+func (r *EventRepositoryImpl) UpdateTicketStock(ctx context.Context, eventID string, quantity int32) error {
 	query := `
 		UPDATE events
-		SET ticket_stock = ticket_stock - ?, updated_at = ?
+		SET ticket_stock = ticket_stock - ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND ticket_stock >= ?
 	`
 
-	result, err := r.db.ExecContext(ctx, query, quantity, time.Now(), eventID, quantity)
+	result, err := r.db.ExecContext(ctx, query, quantity, eventID, quantity)
 	if err != nil {
 		return fmt.Errorf("failed to update ticket stock: %w", err)
 	}
