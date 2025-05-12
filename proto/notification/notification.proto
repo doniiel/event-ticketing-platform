@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "github.com/doniiel/event-ticketing-platform/proto/notification";
+
+import "google/api/annotations.proto";
+
+message Notification {
+  string id = 1;
+  string user_id = 2;
+  string message = 3;
+  string sent_at = 4;
+}
+
+message SendNotificationRequest {
+  string user_id = 1;
+  string message = 2;
+}
+
+message SendNotificationResponse {
+  Notification notification = 1;
+}
+
+message GetNotificationsRequest {
+  string user_id = 1;
+}
+
+message GetNotificationsResponse {
+  repeated Notification notifications = 1;
+}
+
+service NotificationService {
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications"
+      body: "*"
+    };
+  }
+
+  rpc GetNotifications(GetNotificationsRequest) returns (GetNotificationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/notifications/{user_id}"
+    };
+  }
+}

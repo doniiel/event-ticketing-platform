@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
 	"github.com/doniiel/event-ticketing-platform/event-service/internal/model"
 )
 
@@ -190,6 +189,10 @@ func (r *EventRepositoryImpl) List(ctx context.Context, page, pageSize int32) ([
 func (r *EventRepositoryImpl) CheckAvailability(ctx context.Context, eventID string, quantity int32) (bool, error) {
 	query := `SELECT ticket_stock FROM events WHERE id = ?`
 
+	if quantity <= 0 {
+		return false, fmt.Errorf("invalid quantity: must be greater than 0")
+	}
+
 	var ticketStock int32
 	err := r.db.QueryRowContext(ctx, query, eventID).Scan(&ticketStock)
 	if err != nil {
@@ -208,6 +211,10 @@ func (r *EventRepositoryImpl) UpdateTicketStock(ctx context.Context, eventID str
 		SET ticket_stock = ticket_stock - ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ? AND ticket_stock >= ?
 	`
+
+	if quantity <= 0 {
+		return fmt.Errorf("invalid quantity: must be greater than 0")
+	}
 
 	result, err := r.db.ExecContext(ctx, query, quantity, eventID, quantity)
 	if err != nil {
