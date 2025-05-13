@@ -1,0 +1,295 @@
+{
+	"info": {
+		"_postman_id": "2a73a727-ad62-4d95-8df3-011ee1c93c42",
+		"name": "Event-Ticketing-Platform",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "41519037"
+	},
+	"item": [
+		{
+			"name": "Event",
+			"item": [
+				{
+					"name": "Create Event",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Concert\",\n    \"date\": \"2025-06-01T19:00:00Z\",\n    \"location\": \"Stadium\",\n    \"ticket_stock\": 100\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8081/v1/events",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"v1",
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Event",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/v1/events/d6fab6a1-94ed-4f29-98e1-ae52f18ddb2e",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"v1",
+								"events",
+								"d6fab6a1-94ed-4f29-98e1-ae52f18ddb2e"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Event",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/v1/events?page=1&page_size=10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"v1",
+								"events"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "page_size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Availability",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/v1/events/d6fab6a1-94ed-4f29-98e1-ae52f18ddb2e/availability?quantity=5",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"v1",
+								"events",
+								"d6fab6a1-94ed-4f29-98e1-ae52f18ddb2e",
+								"availability"
+							],
+							"query": [
+								{
+									"key": "quantity",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Ticket",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8082/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8082",
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Purchase Ticket",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"event_id\": \"d6fab6a1-94ed-4f29-98e1-ae52f18ddb2e\",\n    \"user_id\": \"user123\",\n    \"quantity\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8082/v1/tickets",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8082",
+							"path": [
+								"v1",
+								"tickets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Ticket",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8082/v1/tickets/68235a2d0f4e0784620f834f",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8082",
+							"path": [
+								"v1",
+								"tickets",
+								"68235a2d0f4e0784620f834f"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notification",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8083/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8083",
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Notification",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"user123\",\n    \"message\": \"Test notification\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8083/v1/notifications",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8083",
+							"path": [
+								"v1",
+								"notifications"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8083/v1/notifications?user_id=user123",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8083",
+							"path": [
+								"v1",
+								"notifications"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "user123"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
