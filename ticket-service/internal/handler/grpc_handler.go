@@ -69,10 +69,13 @@ func (h *TicketHandler) PurchaseTicket(ctx context.Context, req *ticketpb.Purcha
 	} else {
 		go func() {
 			message := "Thank you for purchasing tickets to " + eventRes.Event.Name
-			h.notificationClient.SendNotification(context.Background(), &notificationpb.SendNotificationRequest{
+			_, err2 := h.notificationClient.SendNotification(context.Background(), &notificationpb.SendNotificationRequest{
 				UserId:  req.UserId,
 				Message: message,
 			})
+			if err2 != nil {
+				return
+			}
 		}()
 	}
 

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 	"net/http"
@@ -29,7 +32,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Fatalf("Failed to close database connection: %v", err)
+		}
+	}(db)
 
 	eventRepo := repository.NewEventRepository(db)
 	eventHandler := handler.NewEventHandler(eventRepo)
@@ -56,7 +64,7 @@ func main() {
 	defer cancel()
 
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 	if err := eventpb.RegisterEventServiceHandlerFromEndpoint(
 		ctx, mux, fmt.Sprintf("localhost:%d", cfg.GRPCPort), opts,
@@ -65,20 +73,32 @@ func main() {
 	}
 
 	// Health endpoint
-	mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+	err = mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, err2 := w.Write([]byte(`{"status":"ok"}`))
+		if err2 != nil {
+			return
+		}
 	})
+	if err != nil {
+		return
+	}
 
 	// Swagger UI
 	fs := http.FileServer(http.Dir("docs"))
-	mux.HandlePath("GET", "/swagger.json", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+	err = mux.HandlePath("GET", "/swagger.json", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		http.ServeFile(w, r, "docs/event.swagger.json")
 	})
-	mux.HandlePath("GET", "/swagger/*", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+	if err != nil {
+		return
+	}
+	err = mux.HandlePath("GET", "/swagger/*", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		http.StripPrefix("/swagger", fs).ServeHTTP(w, r)
 	})
+	if err != nil {
+		return
+	}
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
@@ -87,7 +107,7 @@ func main() {
 
 	go func() {
 		log.Printf("HTTP server listening on :%d", cfg.HTTPPort)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Failed to serve HTTP: %v", err)
 		}
 	}()

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 	"net/http"
@@ -17,7 +20,7 @@ import (
 	"github.com/doniiel/event-ticketing-platform/notification-service/internal/handler"
 	"github.com/doniiel/event-ticketing-platform/notification-service/internal/repository"
 	notificationpb "github.com/doniiel/event-ticketing-platform/proto/notification"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -29,7 +32,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+
+		}
+	}(db)
 
 	notificationRepo := repository.NewNotificationRepository(db)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
@@ -61,7 +69,7 @@ func main() {
 	defer cancel()
 
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	if err := notificationpb.RegisterNotificationServiceHandlerFromEndpoint(
 		ctx, mux, fmt.Sprintf("localhost:%d", cfg.GRPCPort), opts,
 	); err != nil {
@@ -76,7 +84,7 @@ func main() {
 
 	go func() {
 		log.Printf("HTTP server listening on :%d", cfg.HTTPPort)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Failed to serve HTTP: %v", err)
 		}
 	}()
@@ -99,9 +107,17 @@ func main() {
 }
 
 func registerHealthCheckEndpoint(mux *runtime.ServeMux) {
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+
+	err := mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, err := w.Write([]byte(`{"status":"ok"}`))
+		if err != nil {
+			return
+		}
 	})
+	if err != nil {
+		return
+	}
+
 }

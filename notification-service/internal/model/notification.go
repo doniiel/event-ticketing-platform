@@ -60,7 +60,7 @@ func (r *MySQLNotificationRepository) GetByID(id string) (*Notification, error) 
 	notification := &Notification{}
 	err := row.Scan(&notification.ID, &notification.UserID, &notification.Message, &notification.SentAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("notification not found")
 		}
 		r.logger.WithError(err).Error("Failed to get notification by ID")
@@ -77,7 +77,12 @@ func (r *MySQLNotificationRepository) GetByUserID(userID string) ([]*Notificatio
 		r.logger.WithError(err).Error("Failed to query notifications by user ID")
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
 
 	notifications := make([]*Notification, 0)
 	for rows.Next() {

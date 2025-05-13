@@ -160,7 +160,12 @@ func (r *EventRepositoryImpl) List(ctx context.Context, page, pageSize int32) ([
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list events: %w", err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
 
 	var events []*model.Event
 	for rows.Next() {

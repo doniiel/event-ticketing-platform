@@ -48,7 +48,12 @@ func (r *MySQLNotificationRepository) GetNotificationsByUserID(userID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("failed to query notifications: %w", err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
 
 	var notifications []*notificationpb.Notification
 	for rows.Next() {
