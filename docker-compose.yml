@@ -1,24 +1,25 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
+    container_name: mysql
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: events
     ports:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      test: ["CMD", "mysql", "-h", "localhost", "-u", "root", "-ppassword", "-e", "SELECT 1"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 60s
 
   mongodb:
     image: mongo:latest
+    container_name: mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: password
@@ -26,16 +27,19 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/init.js
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "root", "-p", "password", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 60s
 
   event-service:
     build:
       context: .
       dockerfile: event-service/Dockerfile
+    container_name: event-service
     ports:
       - "50051:50051"
       - "8081:8081"
@@ -46,11 +50,18 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   ticket-service:
     build:
       context: .
       dockerfile: ticket-service/Dockerfile
+    container_name: ticket-service
     ports:
       - "50052:50052"
       - "8082:8082"
@@ -58,17 +69,26 @@ services:
       - GRPC_PORT=50052
       - HTTP_PORT=8082
       - MONGO_URI=mongodb://root:password@mongodb:27017
+      - DATABASE_NAME=tickets
       - EVENT_SERVICE_ADDR=event-service:50051
+      - NOTIFICATION_SERVICE_ADDR=notification-service:50053
     depends_on:
       mongodb:
         condition: service_healthy
       event-service:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   notification-service:
     build:
       context: .
       dockerfile: notification-service/Dockerfile
+    container_name: notification-service
     ports:
       - "50053:50053"
       - "8083:8083"
@@ -82,6 +102,12 @@ services:
         condition: service_healthy
       ticket-service:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
 volumes:
   mysql-data:

@@ -26,8 +26,8 @@ func LoadConfig() *Config {
 	return &Config{
 		GRPCPort:          grpcPort,
 		HTTPPort:          httpPort,
-		DatabaseURL:       getEnv("DATABASE_URL", "root:password@tcp(localhost:3306)/notifications?parseTime=true"),
-		TicketServiceAddr: getEnv("TICKET_SERVICE_ADDR", "localhost:50052"),
+		DatabaseURL:       getEnv("DATABASE_URL", "root:password@tcp(mysql:3306)/notifications?parseTime=true"),
+		TicketServiceAddr: getEnv("TICKET_SERVICE_ADDR", "ticket-service:50052"),
 	}
 }
 

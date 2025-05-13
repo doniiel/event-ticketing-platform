@@ -8,7 +8,7 @@ import (
 type Config struct {
 	GRPCPort                int
 	HTTPPort                int
-	DatabaseURL             string
+	MongoURI                string
 	DatabaseName            string
 	EventServiceAddr        string
 	NotificationServiceAddr string
@@ -28,10 +28,10 @@ func LoadConfig() *Config {
 	return &Config{
 		GRPCPort:                grpcPort,
 		HTTPPort:                httpPort,
-		DatabaseURL:             getEnv("DATABASE_URL", "mongodb://localhost:27017"),
+		MongoURI:                getEnv("MONGO_URI", "mongodb://root:password@mongodb:27017"),
 		DatabaseName:            getEnv("DATABASE_NAME", "tickets"),
-		EventServiceAddr:        getEnv("EVENT_SERVICE_ADDR", "localhost:50051"),
-		NotificationServiceAddr: getEnv("NOTIFICATION_SERVICE_ADDR", "localhost:50053"),
+		EventServiceAddr:        getEnv("EVENT_SERVICE_ADDR", "event-service:50051"),
+		NotificationServiceAddr: getEnv("NOTIFICATION_SERVICE_ADDR", "notification-service:50053"),
 	}
 }
 

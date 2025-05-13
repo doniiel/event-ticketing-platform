@@ -27,7 +27,7 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	client, err := database.NewMongoClient(cfg.DatabaseURL)
+	client, err := database.NewMongoClient(cfg.MongoURI)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
@@ -41,24 +41,6 @@ func main() {
 	db := client.Database(cfg.DatabaseName)
 
 	ticketRepo := repository.NewTicketRepository(db)
-
-	//eventConn, err := grpc.Dial(
-	//	cfg.EventServiceAddr,
-	//	grpc.WithInsecure(),
-	//)
-	//if err != nil {
-	//	log.Fatalf("Failed to connect to event service: %v", err)
-	//}
-	//defer eventConn.Close()
-	//
-	//notifConn, err := grpc.Dial(
-	//	cfg.NotificationServiceAddr,
-	//	grpc.WithInsecure(),
-	//)
-	//if err != nil {
-	//	log.Fatalf("Failed to connect to notification service: %v", err)
-	//}
-	//defer notifConn.Close()
 
 	eventConn, err := grpc.Dial(
 		cfg.EventServiceAddr,
@@ -149,12 +131,6 @@ func main() {
 }
 
 func registerHealthCheckEndpoint(mux *runtime.ServeMux) {
-	//mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-	//	w.Header().Set("Content-Type", "application/json")
-	//	w.WriteHeader(http.StatusOK)
-	//	w.Write([]byte(`{"status":"ok"}`))
-	//})
-
 	err := mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
