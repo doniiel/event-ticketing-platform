@@ -13,9 +13,33 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type CollectionInterface interface {
+	InsertOne(ctx context.Context, document interface{}) (*mongo.InsertOneResult, error)
+	FindOne(ctx context.Context, filter interface{}) *mongo.SingleResult
+	Find(ctx context.Context, filter interface{}) (*mongo.Cursor, error)
+	FindOneAndUpdate(ctx context.Context, filter interface{}, update interface{}, opts ...*options.FindOneAndUpdateOptions) *mongo.SingleResult
+	Indexes() mongo.IndexView
+}
+
+type collectionWrapper struct {
+	*mongo.Collection
+}
+
 type TicketRepository struct {
 	db         *mongo.Database
-	collection *mongo.Collection
+	collection collectionWrapper
+}
+
+func (w *collectionWrapper) InsertOne(ctx context.Context, document interface{}) (*mongo.InsertOneResult, error) {
+	return w.Collection.InsertOne(ctx, document)
+}
+
+func (w *collectionWrapper) FindOne(ctx context.Context, filter interface{}) *mongo.SingleResult {
+	return w.Collection.FindOne(ctx, filter)
+}
+
+func (w *collectionWrapper) Find(ctx context.Context, filter interface{}) (*mongo.Cursor, error) {
+	return w.Collection.Find(ctx, filter)
 }
 
 func NewTicketRepository(db *mongo.Database) *TicketRepository {
@@ -38,7 +62,7 @@ func NewTicketRepository(db *mongo.Database) *TicketRepository {
 
 	return &TicketRepository{
 		db:         db,
-		collection: collection,
+		collection: collectionWrapper{collection},
 	}
 }
 
@@ -81,7 +105,7 @@ func (r *TicketRepository) GetByUserID(ctx context.Context, userID string) ([]*m
 	defer func(cursor *mongo.Cursor, ctx context.Context) {
 		err := cursor.Close(ctx)
 		if err != nil {
-
+			log.Printf("Error closing cursor: %v", err)
 		}
 	}(cursor, ctx)
 
@@ -143,7 +167,7 @@ func (r *TicketRepository) GetActiveTicketsForEvent(ctx context.Context, eventID
 	defer func(cursor *mongo.Cursor, ctx context.Context) {
 		err := cursor.Close(ctx)
 		if err != nil {
-
+			log.Printf("Error closing cursor: %v", err)
 		}
 	}(cursor, ctx)
 

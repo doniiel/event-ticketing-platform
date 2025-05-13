@@ -3,9 +3,11 @@ FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
+
 RUN go mod download
 
-COPY event-service ./event-service
+COPY ./event-service ./event-service
+COPY ./proto ./proto
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/event-service ./event-service/cmd/server
 
 FROM alpine:3.20
