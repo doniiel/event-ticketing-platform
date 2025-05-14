@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
@@ -21,6 +22,9 @@ import (
 	"github.com/doniiel/event-ticketing-platform/event-service/internal/server"
 	eventpb "github.com/doniiel/event-ticketing-platform/proto/event"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -64,6 +68,11 @@ func main() {
 	defer cancel()
 
 	mux := runtime.NewServeMux()
+
+	mux.HandlePath("GET", "/swagger.json", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+		http.ServeFile(w, r, "docs/ticket.swagger.json")
+	})
+
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 	if err := eventpb.RegisterEventServiceHandlerFromEndpoint(
@@ -98,6 +107,13 @@ func main() {
 		return
 	}
 
+	err = mux.HandlePath("GET", "/metrics", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+		promhttp.Handler().ServeHTTP(w, r)
+	})
+	if err != nil {
+		log.Fatalf("Failed to register /metrics handler: %v", err)
+	}
+
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
 		Handler: server.HttpLoggerMiddleware(mux),
@@ -125,4 +141,11 @@ func main() {
 	}
 
 	log.Println("Servers gracefully stopped")
+}
+
+func initTracer() func() {
+	exporter, _ := otlptracehttp.New(context.Background())
+	tp := trace.NewTracerProvider(trace.WithBatcher(exporter))
+	otel.SetTracerProvider(tp)
+	return func() { _ = tp.Shutdown(context.Background()) }
 }
