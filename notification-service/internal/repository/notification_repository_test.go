@@ -12,7 +12,6 @@ import (
 )
 
 func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
-	// Setup
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock database: %v", err)
@@ -25,7 +24,7 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 		name          string
 		userID        string
 		message       string
-		mockSetup     func() string // Returns now for expectations
+		mockSetup     func() string
 		mockError     error
 		expectedError bool
 	}{
@@ -36,7 +35,7 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 			mockSetup: func() string {
 				now := time.Now().Format(time.RFC3339)
 				mock.ExpectExec("INSERT INTO notifications \\(id, user_id, message, sent_at\\) VALUES \\(\\?, \\?, \\?, \\?\\)").
-					WithArgs(sqlmock.AnyArg(), "user123", "Test message", now). // Use AnyArg for id
+					WithArgs(sqlmock.AnyArg(), "user123", "Test message", now).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				return now
 			},
@@ -50,7 +49,7 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 			mockSetup: func() string {
 				now := time.Now().Format(time.RFC3339)
 				mock.ExpectExec("INSERT INTO notifications \\(id, user_id, message, sent_at\\) VALUES \\(\\?, \\?, \\?, \\?\\)").
-					WithArgs(sqlmock.AnyArg(), "user123", "Test message", now). // Use AnyArg for id
+					WithArgs(sqlmock.AnyArg(), "user123", "Test message", now).
 					WillReturnError(errors.New("database error"))
 				return now
 			},
@@ -61,7 +60,6 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
 			now := tt.mockSetup()
 			expectedResp := &notification.Notification{
 				UserId:  tt.userID,
@@ -69,10 +67,8 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 				SentAt:  now,
 			}
 
-			// Act
 			resp, err := repo.SaveNotification(tt.userID, tt.message)
 
-			// Assert
 			if tt.expectedError {
 				assert.Error(t, err)
 				assert.EqualError(t, err, "failed to save notification: "+tt.mockError.Error())
@@ -80,7 +76,6 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if assert.NotNil(t, resp) {
-					// Validate that Id is a valid UUID
 					_, uuidErr := uuid.Parse(resp.Id)
 					assert.NoError(t, uuidErr, "Id should be a valid UUID")
 					assert.Equal(t, expectedResp.UserId, resp.UserId)
@@ -89,7 +84,6 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 				}
 			}
 
-			// Ensure all expectations were met
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("there were unfulfilled expectations: %s", err)
 			}
@@ -98,7 +92,6 @@ func TestMySQLNotificationRepository_SaveNotification(t *testing.T) {
 }
 
 func TestMySQLNotificationRepository_GetNotificationsByUserID(t *testing.T) {
-	// Setup
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create mock database: %v", err)
@@ -153,10 +146,8 @@ func TestMySQLNotificationRepository_GetNotificationsByUserID(t *testing.T) {
 				assert.Error(t, setupErr)
 			}
 
-			// Act
 			resp, err := repo.GetNotificationsByUserID(tt.userID)
 
-			// Assert
 			if tt.expectedError {
 				assert.Error(t, err)
 				assert.EqualError(t, err, "failed to query notifications: "+setupErr.Error())
@@ -173,7 +164,6 @@ func TestMySQLNotificationRepository_GetNotificationsByUserID(t *testing.T) {
 				}
 			}
 
-			// Ensure all expectations were met
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("there were unfulfilled expectations: %s", err)
 			}

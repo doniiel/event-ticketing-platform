@@ -38,7 +38,6 @@ func (r *MySQLNotificationRepository) Create(notification *Notification) error {
 		return errors.New("notification ID, user ID and message are required")
 	}
 
-	// If SentAt is not set, set it to the current time
 	if notification.SentAt.IsZero() {
 		notification.SentAt = time.Now()
 	}

@@ -15,17 +15,14 @@ func NewMySQLConnection(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("error opening database: %w", err)
 	}
 
-	// Configure connection pool
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Verify connection
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("could not ping database: %w", err)
 	}
 
-	// Initialize database schema
 	if err := createTables(db); err != nil {
 		return nil, fmt.Errorf("could not create tables: %w", err)
 	}

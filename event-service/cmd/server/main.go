@@ -72,7 +72,6 @@ func main() {
 		log.Fatalf("Failed to register gateway: %v", err)
 	}
 
-	// Health endpoint
 	err = mux.HandlePath("GET", "/health", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -85,7 +84,6 @@ func main() {
 		return
 	}
 
-	// Swagger UI
 	fs := http.FileServer(http.Dir("docs"))
 	err = mux.HandlePath("GET", "/swagger.json", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		http.ServeFile(w, r, "docs/event.swagger.json")
