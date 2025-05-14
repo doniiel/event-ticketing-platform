@@ -19,6 +19,16 @@ func NewNotificationHandler(repo repository.NotificationRepository) *Notificatio
 	}
 }
 
+// @Summary Send a notification
+// @Description Sends a notification to a user
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Param userID path string true "User ID"
+// @Param message body string true "Notification message"
+// @Success 200 {object} map[string]string "message: Notification sent"
+// @Failure 400 {object} map[string]string "error: Invalid request"
+// @Router /notifications/{userID} [post]
 func (h *NotificationHandler) SendNotification(ctx context.Context, req *notificationpb.SendNotificationRequest) (*notificationpb.SendNotificationResponse, error) {
 	notification, err := h.repo.SaveNotification(req.UserId, req.Message)
 	if err != nil {
