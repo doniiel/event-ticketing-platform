@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
@@ -103,12 +103,19 @@ func main() {
 	err = mux.HandlePath("GET", "/swagger/*", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
 		http.StripPrefix("/swagger", fs).ServeHTTP(w, r)
 	})
+	log.Println("some info")
 	if err != nil {
 		return
 	}
 
 	err = mux.HandlePath("GET", "/metrics", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-		promhttp.Handler().ServeHTTP(w, r)
+		prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "go_goroutines",
+				Help: "Number of goroutines",
+			},
+			[]string{"job"},
+		)
 	})
 	if err != nil {
 		log.Fatalf("Failed to register /metrics handler: %v", err)

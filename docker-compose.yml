@@ -69,8 +69,6 @@ services:
       - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./grafana/datasources:/etc/grafana/provisioning/datasources
 
-
-
   event-service:
     build:
       context: .

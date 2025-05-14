@@ -4,5 +4,5 @@ scrape_configs:
       - targets:
           - localhost
         labels:
-          job: docker-logs
+          job: docker
           __path__: /var/lib/docker/containers/*/*.log
