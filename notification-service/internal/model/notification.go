@@ -39,7 +39,10 @@ func (r *MySQLNotificationRepository) Create(notification *Notification) error {
 	}
 
 	if notification.SentAt.IsZero() {
-		notification.SentAt = time.Now()
+		//now := time.Now().UTC().Format("2006-01-02 15:04:05")
+		//notification.SentAt, _ = time.Parse("2006-01-02 15:04:05", now)
+
+		notification.SentAt, _ = time.Parse("2006-01-02 15:04:05", time.Now().UTC().Format("2006-01-02 15:04:05"))
 	}
 
 	query := `INSERT INTO notifications (id, user_id, message, sent_at) VALUES (?, ?, ?, ?)`

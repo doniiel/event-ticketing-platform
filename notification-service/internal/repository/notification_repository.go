@@ -26,7 +26,7 @@ func NewNotificationRepository(db *sql.DB) NotificationRepository {
 
 func (r *MySQLNotificationRepository) SaveNotification(userID, message string) (*notificationpb.Notification, error) {
 	id := uuid.New().String()
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	query := `INSERT INTO notifications (id, user_id, message, sent_at) VALUES (?, ?, ?, ?)`
 	_, err := r.db.Exec(query, id, userID, message, now)
@@ -51,7 +51,7 @@ func (r *MySQLNotificationRepository) GetNotificationsByUserID(userID string) ([
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-
+			fmt.Printf("failed to close rows: %v\n", err)
 		}
 	}(rows)
 

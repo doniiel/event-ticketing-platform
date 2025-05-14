@@ -25,6 +25,11 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+// @title Notification Service API
+// @version 1.0
+// @description This is the API for the Notification Service of the Event Ticketing Platform.
+// @host localhost:8080
+// @BasePath /api/v1
 func main() {
 	cfg := config.LoadConfig()
 
@@ -35,7 +40,7 @@ func main() {
 	defer func(db *sql.DB) {
 		err := db.Close()
 		if err != nil {
-
+			log.Printf("Failed to close DB connection: %v", err)
 		}
 	}(db)
 
